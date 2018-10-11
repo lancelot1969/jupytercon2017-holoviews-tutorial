@@ -1,11 +1,19 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Wed Oct 10 19:58:59 2018
+
+@author: akirakosyan
+"""
+
 import dask.dataframe as dd
 import holoviews as hv
 import geoviews as gv
 
-from bokeh.models import Slider, Button
+from bokeh.models import Slider, Button, CustomJS
 from bokeh.layouts import layout
 from bokeh.io import curdoc
 from bokeh.models import WMTSTileSource
+from bokeh.models.callbacks import CustomJS
 
 from holoviews.operation.datashader import datashade, aggregate, shade
 from holoviews.plotting.util import fire
@@ -17,6 +25,8 @@ renderer = hv.renderer('bokeh').instance(mode='server')
 # Load data
 usecols = ['tpep_pickup_datetime', 'dropoff_x', 'dropoff_y']
 ddf = dd.read_csv('../data/nyc_taxi.csv', parse_dates=['tpep_pickup_datetime'], usecols=usecols)
+#ddf = dd.read_csv(r'C:\Users\akirakosyan\Documents\bokeh-cspire-app\temp\jupytercon2017-holoviews-tutorial\notebooks\data\nyc_taxi.csv', 
+#parse_dates=['tpep_pickup_datetime'], usecols=usecols)
 ddf['hour'] = ddf.tpep_pickup_datetime.dt.hour
 ddf = ddf.persist()
 
@@ -52,13 +62,7 @@ hvobj = (wmts * shaded * vline) << section
 plot = renderer.get_plot(hvobj, doc=curdoc())
 
 # Define a slider and button
-start, end = 0, 23
 
-def slider_update(attrname, old, new):
-    stream.event(hour=new)
-
-slider = Slider(start=start, end=end, value=0, step=1, title="Hour")
-slider.on_change('value', slider_update)
 
 def animate_update():
     year = slider.value + 1
@@ -66,16 +70,29 @@ def animate_update():
         year = start
     slider.value = year
 
-def animate():
-    if button.label == '► Play':
-        button.label = '❚❚ Pause'
-        curdoc().add_periodic_callback(animate_update, 1000)
-    else:
-        button.label = '► Play'
-        curdoc().remove_periodic_callback(animate_update)
+def slider_update(attrname, old, new):
+    stream.event(hour=new)
 
-button = Button(label='► Play', width=60)
+start, end = 0, 23
+slider = Slider(start=start, end=end, value=0, step=1, title="Hour")
+slider.on_change('value', slider_update)
+
+
+callback_id = None
+	
+def animate():
+    global callback_id
+    if button.label == '\u25B6 Play':
+        button.label = '\u23F8 Pause'
+        callback_id = curdoc().add_periodic_callback(animate_update, 50)
+    else:
+        button.label = '\u25B6 Play'
+        curdoc().remove_periodic_callback(callback_id)
+		
+				
+button = Button(label='\u25B6 Play', width=60)
 button.on_click(animate)
+	
 
 # Combine the bokeh plot on plot.state with the widgets
 layout = layout([
